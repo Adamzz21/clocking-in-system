@@ -1,15 +1,21 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function App() {
   const [mode, setMode] = useState("");
   const [id, setId] = useState("");
+  const [name, setName] = useState("");
+  const [birthdate, setBirthdate] = useState("");
+  const [email, setEmail] = useState("");
   const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(false); // Loading state
+  const [loading, setLoading] = useState(false);
+  const [scannedIds, setScannedIds] = useState([]);
 
   const handleSubmit = async () => {
     if ((mode === "enroll" || mode === "delete") && !id) {
-      alert("Please enter an ID");
+      toast.warning("Please enter an ID");
       return;
     }
 
@@ -18,17 +24,43 @@ function App() {
 
     try {
       let response;
+
       if (mode === "enroll") {
-        response = await axios.post("http://localhost:5000/enroll", { id });
+        response = await axios.post("http://localhost:5000/enroll", {
+          id,
+          name,
+          birthdate,
+          email,
+        });
+        setLogs(response.data.messages || ["Enrolled successfully"]);
+        toast.success("User enrolled successfully");
+
+        // Reset form
+        setName("");
+        setBirthdate("");
+        setEmail("");
+        setId("");
       } else if (mode === "delete") {
         response = await axios.post("http://localhost:5000/delete", { id });
+        setLogs(response.data.messages || ["Deleted successfully"]);
+        toast.warn("User deleted successfully");
+        setId("");
       } else if (mode === "search") {
         response = await axios.get("http://localhost:5000/search");
-      }
+        const foundId = response.data.id;
 
-      setLogs(response.data.messages || ["No response"]);
+        if (foundId) {
+          setScannedIds((prev) => [...new Set([foundId, ...prev])]);
+          setLogs([`Fingerprint matched with ID: ${foundId}`]);
+          toast.success(`Fingerprint matched with ID: ${foundId}`);
+        } else {
+          setLogs(["No fingerprint match found."]);
+          toast.info("No fingerprint match found.");
+        }
+      }
     } catch (err) {
       setLogs(["Error connecting to backend"]);
+      toast.error("Failed to connect to the backend.");
       console.error(err);
     } finally {
       setLoading(false);
@@ -45,24 +77,30 @@ function App() {
         <div className="flex justify-around mb-4">
           <button
             onClick={() => setMode("enroll")}
-            className={`px-4 py-2 rounded ${
-              mode === "enroll" ? "bg-blue-500 text-white" : "bg-blue-100"
+            className={`px-4 py-2 rounded-full font-semibold transition-colors duration-200 ${
+              mode === "enroll"
+                ? "bg-blue-600 text-white"
+                : "bg-blue-100 text-blue-800"
             }`}
           >
             Enroll
           </button>
           <button
             onClick={() => setMode("delete")}
-            className={`px-4 py-2 rounded ${
-              mode === "delete" ? "bg-red-500 text-white" : "bg-red-100"
+            className={`px-4 py-2 rounded-full font-semibold transition-colors duration-200 ${
+              mode === "delete"
+                ? "bg-red-600 text-white"
+                : "bg-red-100 text-red-800"
             }`}
           >
             Delete
           </button>
           <button
             onClick={() => setMode("search")}
-            className={`px-4 py-2 rounded ${
-              mode === "search" ? "bg-green-500 text-white" : "bg-green-100"
+            className={`px-4 py-2 rounded-full font-semibold transition-colors duration-200 ${
+              mode === "search"
+                ? "bg-green-600 text-white"
+                : "bg-green-100 text-green-800"
             }`}
           >
             Search
@@ -80,9 +118,37 @@ function App() {
           />
         )}
 
+        {mode === "enroll" && (
+          <>
+            <input
+              type="text"
+              placeholder="Enter Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full border p-2 rounded mb-2"
+              disabled={loading}
+            />
+            <input
+              type="date"
+              value={birthdate}
+              onChange={(e) => setBirthdate(e.target.value)}
+              className="w-full border p-2 rounded mb-2"
+              disabled={loading}
+            />
+            <input
+              type="email"
+              placeholder="Email (optional)"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border p-2 rounded mb-4"
+              disabled={loading}
+            />
+          </>
+        )}
+
         <button
           onClick={handleSubmit}
-          className="w-full bg-black text-white py-2 rounded mb-4"
+          className="w-full bg-black text-white py-2 rounded-full hover:bg-gray-900 transition duration-200 mb-4"
           disabled={loading}
         >
           {loading ? "Processing..." : "Send Command"}
@@ -95,7 +161,29 @@ function App() {
           ))}
           {loading && <div className="italic text-gray-500">Loading...</div>}
         </div>
+
+        {scannedIds.length > 0 && (
+          <div className="mt-6 bg-white border p-4 rounded shadow">
+            <h3 className="font-semibold mb-2">Scanned Fingerprint IDs</h3>
+            <ul className="list-disc list-inside text-sm">
+              {scannedIds.map((sid, idx) => (
+                <li key={idx}>{sid}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
+
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
     </div>
   );
 }
