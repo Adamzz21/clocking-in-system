@@ -12,6 +12,7 @@ function App() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [scannedIds, setScannedIds] = useState([]);
+  const [userInfo, setUserInfo] = useState(null);
 
   const handleSubmit = async () => {
     if ((mode === "enroll" || mode === "delete") && !id) {
@@ -35,7 +36,6 @@ function App() {
         setLogs(response.data.messages || ["Enrolled successfully"]);
         toast.success("User enrolled successfully");
 
-        // Reset form
         setName("");
         setBirthdate("");
         setEmail("");
@@ -51,9 +51,22 @@ function App() {
 
         if (foundId) {
           setScannedIds((prev) => [...new Set([foundId, ...prev])]);
-          setLogs([`Fingerprint matched with ID: ${foundId}`]);
-          toast.success(`Fingerprint matched with ID: ${foundId}`);
+
+          const info = response.data.info;
+          setUserInfo(info);
+
+          const displayName = info?.name || "Unknown";
+          const scanTime = info?.scanned_at || "N/A";
+
+          setLogs([
+            `Fingerprint matched with ID: ${foundId}`,
+            `Name: ${displayName}`,
+            `Scanned at: ${scanTime}`,
+          ]);
+
+          toast.success(`Welcome, ${displayName}`);
         } else {
+          setUserInfo(null);
           setLogs(["No fingerprint match found."]);
           toast.info("No fingerprint match found.");
         }
@@ -161,6 +174,24 @@ function App() {
           ))}
           {loading && <div className="italic text-gray-500">Loading...</div>}
         </div>
+
+        {userInfo && (
+          <div className="mt-6 bg-white border p-4 rounded shadow text-sm">
+            <h3 className="font-semibold mb-2">Matched User Info</h3>
+            <p>
+              <strong>Name:</strong> {userInfo.name}
+            </p>
+            <p>
+              <strong>Birthdate:</strong> {userInfo.birthdate}
+            </p>
+            <p>
+              <strong>Email:</strong> {userInfo.email || "N/A"}
+            </p>
+            <p>
+              <strong>Scanned At:</strong> {userInfo.scanned_at}
+            </p>
+          </div>
+        )}
 
         {scannedIds.length > 0 && (
           <div className="mt-6 bg-white border p-4 rounded shadow">

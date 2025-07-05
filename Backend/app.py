@@ -4,6 +4,7 @@ import serial
 import time
 import json
 import os
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -16,8 +17,12 @@ DATA_FILE = 'users.json'
 def load_users():
     if not os.path.exists(DATA_FILE):
         return {}
-    with open(DATA_FILE, 'r') as f:
-        return json.load(f)
+    try:
+        with open(DATA_FILE, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        save_users({})
+        return {}
 
 def save_users(data):
     with open(DATA_FILE, 'w') as f:
@@ -34,11 +39,13 @@ def send_command_with_response(cmd):
             line = arduino.readline().decode().strip()
             print("Arduino:", line)
             response_lines.append(line)
-            if "successfully" in line.lower() or "not found" in line.lower() or "deleted" in line.lower():
+            if (
+                "successfully" in line.lower()
+                or "not found" in line.lower()
+                or "deleted" in line.lower()
+            ):
                 break
     return response_lines
-
-
 
 @app.route('/enroll', methods=['POST'])
 def enroll():
@@ -75,7 +82,6 @@ def delete():
     if not user_id:
         return jsonify({'error': 'Missing ID'}), 400
 
-    
     arduino.write(b'2\n')
     time.sleep(0.5)
     arduino.write((user_id + '\n').encode())
@@ -105,6 +111,10 @@ def search():
 
     users = load_users()
     user_info = users.get(found_id)
+
+    if user_info:
+        user_info = user_info.copy()
+        user_info["scanned_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     return jsonify({
         'status': 'ok',
