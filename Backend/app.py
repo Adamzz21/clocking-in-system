@@ -1,10 +1,13 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from pymongo import MongoClient
+from dotenv import load_dotenv
+import os
 import serial
 import time
-import json
-import os
 from datetime import datetime
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -12,21 +15,10 @@ CORS(app)
 arduino = serial.Serial('COM4', 9600, timeout=5)
 time.sleep(2)
 
-DATA_FILE = 'users.json'
-
-def load_users():
-    if not os.path.exists(DATA_FILE):
-        return {}
-    try:
-        with open(DATA_FILE, 'r') as f:
-            return json.load(f)
-    except json.JSONDecodeError:
-        save_users({})
-        return {}
-
-def save_users(data):
-    with open(DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
+MONGO_URI = os.getenv("MONGO_URI")
+client = MongoClient(MONGO_URI)
+db = client["clocking_system"]
+users_collection = db["users"]
 
 def send_command_with_response(cmd):
     arduino.reset_input_buffer()
@@ -64,16 +56,17 @@ def enroll():
     response = send_command_with_response("")
 
     if any("successfully" in r.lower() for r in response):
-        users = load_users()
-        users[user_id] = {
-            "name": name,
-            "birthdate": birthdate,
-            "email": email
-        }
-        save_users(users)
+        users_collection.update_one(
+            {"_id": user_id},
+            {"$set": {
+                "name": name,
+                "birthdate": birthdate,
+                "email": email
+            }},
+            upsert=True
+        )
 
     return jsonify({'status': 'ok', 'messages': response})
-
 
 @app.route('/delete', methods=['POST'])
 def delete():
@@ -88,13 +81,9 @@ def delete():
     response = send_command_with_response("")
 
     if any("deleted" in r.lower() for r in response):
-        users = load_users()
-        if user_id in users:
-            del users[user_id]
-            save_users(users)
+        users_collection.delete_one({"_id": user_id})
 
     return jsonify({'status': 'ok', 'messages': response})
-
 
 @app.route('/search', methods=['GET'])
 def search():
@@ -109,11 +98,9 @@ def search():
                 found_id = parts[1].strip()
                 break
 
-    users = load_users()
-    user_info = users.get(found_id)
+    user_info = users_collection.find_one({"_id": found_id}, {"_id": 0})
 
     if user_info:
-        user_info = user_info.copy()
         user_info["scanned_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     return jsonify({
