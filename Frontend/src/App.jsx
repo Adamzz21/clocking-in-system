@@ -1,3 +1,7 @@
+// import React from "react";
+// import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+// import AdminPage from "./pages/AdminPage";
+// import IdlePage from "./pages/IdlePage";
 import React, { useState } from "react";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
@@ -81,6 +85,12 @@ function App() {
   };
 
   return (
+    // <Router>
+    //   <Routes>
+    //     <Route path="/" element={<IdlePage />} />
+    //     <Route path="/admin" element={<AdminPage />} />
+    //   </Routes>
+    // </Router>
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-md p-6">
         <h1 className="text-2xl font-bold mb-4 text-center">
