@@ -15,7 +15,7 @@ function IdlePage() {
         setLogs(["Error communicating with backend."]);
         setUserInfo(null);
       }
-    }, 6000); // every 6 seconds
+    }, 6000);
 
     return () => clearInterval(interval);
   }, []);
